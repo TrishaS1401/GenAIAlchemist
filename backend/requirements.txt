@@ -1,0 +1,5 @@
+google-adk
+amadeus
+requests
+python-dotenv
+flask
