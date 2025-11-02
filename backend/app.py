@@ -21,7 +21,14 @@ APP_NAME = "agents"
 
 # Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend communication
+
+# Update CORS configuration for production
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '*').split(',')
+CORS(app, 
+     origins=ALLOWED_ORIGINS,
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization'],
+     methods=['GET', 'POST', 'OPTIONS'])
 
 def generate_session_id():
     """Generate a unique session ID."""
@@ -160,12 +167,39 @@ def chat_stream():
 
 
 @app.route('/health', methods=['GET'])
-def health():
-    """Health check endpoint."""
+def health_check():
+    """Health check endpoint for Cloud Run and load balancers"""
     return jsonify({
-        "status": "healthy",
-        "app_name": APP_NAME
+        'status': 'healthy',
+        'service': 'genaialchemist-backend',
+        'version': '1.0.0',
+        'app_name': APP_NAME
     }), 200
+
+
+@app.route('/ready', methods=['GET'])
+def readiness_check():
+    """Readiness check to ensure all dependencies are loaded"""
+    try:
+        # Check if critical environment variables are set
+        required_vars = ['GEMINI_API_KEY', 'AMADEUS_CLIENT_ID']
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+        
+        if missing_vars:
+            return jsonify({
+                'status': 'not_ready',
+                'missing_vars': missing_vars
+            }), 503
+        
+        return jsonify({
+            'status': 'ready',
+            'message': 'Service is ready to accept requests'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 
 if __name__ == "__main__":
@@ -178,6 +212,7 @@ if __name__ == "__main__":
     print(f"  POST /chat        - Send message (initializes on first call)")
     print(f"  POST /chatStream  - Send message streaming (initializes on first call)")
     print(f"  GET  /health      - Health check")
+    print(f"  GET  /ready       - Readiness check")
     print("="*70)
     print("USAGE:")
     print("  1. Call /getSession to get a session_id")
@@ -185,4 +220,6 @@ if __name__ == "__main__":
     print("  3. Keep using same session_id for conversation continuity")
     print("="*70)
     
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    port = int(os.getenv('PORT', 5000))
+    debug_mode = os.getenv('FLASK_ENV') == 'development'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

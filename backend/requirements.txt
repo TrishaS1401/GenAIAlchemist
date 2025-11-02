@@ -4,3 +4,11 @@ requests
 python-dotenv
 flask
 flask-cors
+
+# Production WSGI Server
+gunicorn==21.2.0
+
+# Additional production dependencies
+python-json-logger==2.0.7
+google-cloud-logging==3.8.0
+google-cloud-secret-manager==2.16.4

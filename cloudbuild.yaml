@@ -1,0 +1,184 @@
+# Complete Cloud Build configuration for GenAIAlchemist
+# Builds and deploys both backend and frontend to Cloud Run
+
+steps:
+  # ============================================
+  # STEP 1: Build Backend Docker Image
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-backend'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-backend:$SHORT_SHA'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-backend:latest'
+      - '-f'
+      - 'Dockerfile.backend'
+      - '.'
+    timeout: 1200s
+
+  # ============================================
+  # STEP 2: Push Backend Image
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-backend'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-backend:$SHORT_SHA'
+    waitFor: ['build-backend']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-backend-latest'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-backend:latest'
+    waitFor: ['build-backend']
+
+  # ============================================
+  # STEP 3: Deploy Backend to Cloud Run
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-backend'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'genaialchemist-backend'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-backend:$SHORT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--timeout'
+      - '300'
+      - '--max-instances'
+      - '10'
+      - '--min-instances'
+      - '0'
+      - '--set-env-vars'
+      - 'GEMINI_MODEL=${_GEMINI_MODEL},INDIAN_RAPID_HOST=${_INDIAN_RAPID_HOST}'
+      - '--set-secrets'
+      - 'GEMINI_API_KEY=gemini-api-key:latest,GOOGLE_API_KEY=google-api-key:latest,AMADEUS_CLIENT_ID=amadeus-client-id:latest,AMADEUS_CLIENT_SECRET=amadeus-client-secret:latest,GOOGLE_MAPS_KEY=google-maps-key:latest,RAPID_API_KEY=rapid-api-key:latest'
+    waitFor: ['push-backend']
+
+  # ============================================
+  # STEP 4: Get Backend URL and Build Frontend
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'build-frontend'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get the backend URL
+        BACKEND_URL=$$(gcloud run services describe genaialchemist-backend \
+          --region=${_REGION} \
+          --format='value(status.url)')
+        
+        echo "Building frontend with backend URL: $$BACKEND_URL"
+        
+        # Build the frontend Docker image with the backend URL
+        docker build \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-frontend:$SHORT_SHA \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-frontend:latest \
+          -f Dockerfile.frontend \
+          --build-arg VITE_API_URL=$$BACKEND_URL \
+          .
+    timeout: 1200s
+    waitFor: ['deploy-backend']
+
+  # ============================================
+  # STEP 5: Push Frontend Image
+  # ============================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-frontend'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-frontend:$SHORT_SHA'
+    waitFor: ['build-frontend']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-frontend-latest'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-frontend:latest'
+    waitFor: ['build-frontend']
+
+  # ============================================
+  # STEP 6: Deploy Frontend to Cloud Run
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-frontend'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'genaialchemist-frontend'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-frontend:$SHORT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '5'
+      - '--min-instances'
+      - '0'
+    waitFor: ['push-frontend']
+
+  # ============================================
+  # STEP 7: Display URLs
+  # ============================================
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'display-urls'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo ""
+        echo "================================================"
+        echo "✅ DEPLOYMENT COMPLETE!"
+        echo "================================================"
+        echo ""
+        BACKEND_URL=$$(gcloud run services describe genaialchemist-backend --region=${_REGION} --format='value(status.url)')
+        FRONTEND_URL=$$(gcloud run services describe genaialchemist-frontend --region=${_REGION} --format='value(status.url)')
+        echo "🌐 Frontend: $$FRONTEND_URL"
+        echo "🔗 Backend:  $$BACKEND_URL"
+        echo ""
+        echo "Test your app: $$FRONTEND_URL"
+        echo "================================================"
+        echo ""
+    waitFor: ['deploy-frontend']
+
+# Store images in Artifact Registry
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-backend:$SHORT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-backend:latest'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-frontend:$SHORT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/genaialchemist-frontend:latest'
+
+# Substitution variables
+substitutions:
+  _REGION: 'us-central1'
+  _REPO: 'genaialchemist'
+  _GEMINI_MODEL: 'gemini-2.0-flash-exp'
+  _INDIAN_RAPID_HOST: 'irctc-indian-railway-api.p.rapidapi.com'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+  
+timeout: 3600s

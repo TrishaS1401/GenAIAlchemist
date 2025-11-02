@@ -1,0 +1,34 @@
+# Stage 1: Build the React application
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY frontend/"Easemytrip UI"/package.json frontend/"Easemytrip UI"/package-lock.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the frontend source code
+COPY frontend/"Easemytrip UI"/ ./
+
+# Build the production-ready static files
+# The VITE_API_URL will be passed in during the Cloud Build process
+ARG VITE_API_URL
+RUN npm run build
+
+
+# Stage 2: Serve the static files with Nginx
+FROM nginx:1.25-alpine
+
+# Copy the built assets from the builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy the nginx configuration file
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80 for the web server
+EXPOSE 8080
+
+# Start Nginx when the container launches
+CMD ["nginx", "-g", "daemon off;"]
