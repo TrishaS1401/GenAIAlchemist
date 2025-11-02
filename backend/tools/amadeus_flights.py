@@ -12,6 +12,10 @@ from google.adk.tools import ToolContext
 
 
 # --- Service Class for Amadeus API Interaction ---
+from dotenv import load_dotenv
+
+# Load environment variables from 'env' file before any other imports
+load_dotenv()
 
 class AmadeusFlightsService:
     """

@@ -102,7 +102,7 @@ Remember: Your goal is to help travelers make informed decisions about their tri
 """
 import os
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 weather_forecast_agent = Agent(
     model=GEMINI_MODEL,

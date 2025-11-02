@@ -1,5 +1,10 @@
 import asyncio
 import socket
+from dotenv import load_dotenv
+
+# Load environment variables from 'env' file before importing agents
+load_dotenv('env')
+
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 from agents.agent import root_agent

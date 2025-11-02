@@ -3,3 +3,4 @@ amadeus
 requests
 python-dotenv
 flask
+flask-cors

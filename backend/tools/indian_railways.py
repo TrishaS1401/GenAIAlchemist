@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 import requests
 from google.adk.tools import ToolContext
 
+from dotenv import load_dotenv
+
+# Load environment variables from 'env' file before any other imports
+load_dotenv()
 
 class IndianRailwaysService:
     """Service for interacting with RapidAPI IRCTC API.

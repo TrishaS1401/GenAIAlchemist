@@ -1,15 +1,11 @@
 import os
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL")
-
 """Inspiration agent. A pre-booking agent covering the ideation part of the trip."""
 
 from shared_libraries.types import DestinationIdeas, POISuggestions, json_response_config
 from agents.tool_agents.monitoring.weather_agent.agent import weather_forecast_agent
-import os
 from google.adk.agents import Agent, LlmAgent, ParallelAgent, SequentialAgent
 from google.adk.tools.agent_tool import AgentTool
-from shared_libraries.types import DestinationIdeas, POISuggestions, json_response_config
 from . import prompt
 from tools.places import map_tool
 

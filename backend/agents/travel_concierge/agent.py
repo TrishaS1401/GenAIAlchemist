@@ -12,7 +12,7 @@ from agents.orchestrators.planning_agent.agent import planning_agent
 from tools.memory import _load_precreated_itinerary
 import os
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 COMPLETION_PHRASE = "Response is adequate and ready for user."
 
 # --- Exit Loop Tool ---

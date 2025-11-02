@@ -1,7 +1,13 @@
 import os
 import uuid
 import socket
+from dotenv import load_dotenv
+
+# Load environment variables from 'env' file before any other imports
+load_dotenv('env')
+
 from flask import Flask, request, jsonify, Response, stream_with_context
+from flask_cors import CORS
 from agent_runner import call_agent_sync, call_agent_stream
 
 # Force IPv4 to avoid connectivity issues
@@ -15,6 +21,11 @@ APP_NAME = "agents"
 
 # Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend communication
+
+def generate_session_id():
+    """Generate a unique session ID."""
+    return str(uuid.uuid4())
 
 
 @app.route('/getSession', methods=['POST'])
@@ -174,4 +185,4 @@ if __name__ == "__main__":
     print("  3. Keep using same session_id for conversation continuity")
     print("="*70)
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
